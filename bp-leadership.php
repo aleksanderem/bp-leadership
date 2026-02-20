@@ -2,14 +2,14 @@
 /**
  * Plugin Name: BP Leadership
  * Description: Featured Stories and Leadership custom post types with ACF fields
- * Version: 1.0.9
+ * Version: 1.1.0
  * Author: Alex M.
  * Text Domain: bp-leadership
  */
 
 defined('ABSPATH') || exit;
 
-define('BP_LEADERSHIP_VERSION', '1.0.9');
+define('BP_LEADERSHIP_VERSION', '1.1.0');
 define('BP_LEADERSHIP_PATH', plugin_dir_path(__FILE__));
 define('BP_LEADERSHIP_URL', plugin_dir_url(__FILE__));
 
@@ -18,6 +18,11 @@ require_once BP_LEADERSHIP_PATH . 'includes/class-cpt-leadership.php';
 require_once BP_LEADERSHIP_PATH . 'includes/class-acf-fields.php';
 require_once BP_LEADERSHIP_PATH . 'includes/class-starter-addon.php';
 require_once BP_LEADERSHIP_PATH . 'includes/class-elementor-queries.php';
+
+// Load textdomain early to avoid WP 6.7+ notice
+add_action('init', function() {
+    load_plugin_textdomain('bp-leadership', false, dirname(plugin_basename(__FILE__)) . '/languages');
+}, 0);
 
 // Register CPTs
 add_action('init', ['BP_Leadership_CPT_Featured_Stories', 'register']);
