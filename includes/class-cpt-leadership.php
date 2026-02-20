@@ -42,11 +42,22 @@ class BP_Leadership_CPT_Leadership {
 
         $cpt_args['public']      = true;
         $cpt_args['has_archive'] = !$slug_disabled;
-        $cpt_args['rewrite']     = $slug_disabled
-            ? ['slug' => '/', 'with_front' => false]
-            : ['slug' => 'leadership', 'with_front' => false];
 
-        register_post_type('leadership', $cpt_args);
+        if ($slug_disabled) {
+            // Use a hidden slug that won't conflict, with rules placed at bottom priority
+            $cpt_args['rewrite'] = ['slug' => 'leadership-profile', 'with_front' => false];
+            register_post_type('leadership', $cpt_args);
+
+            // Override the permalink to remove the slug prefix
+            add_filter('post_type_link', [__CLASS__, 'remove_slug_from_permalink'], 10, 2);
+            // Intercept pagename requests and resolve to leadership if matching
+            add_filter('request', [__CLASS__, 'resolve_root_leadership_request'], 10, 1);
+            // Prevent canonical redirect from /slug/ to /leadership-profile/slug/
+            add_filter('redirect_canonical', [__CLASS__, 'prevent_leadership_canonical_redirect'], 10, 2);
+        } else {
+            $cpt_args['rewrite'] = ['slug' => 'leadership', 'with_front' => false];
+            register_post_type('leadership', $cpt_args);
+        }
     }
 
     public static function add_settings_page() {
@@ -133,6 +144,86 @@ class BP_Leadership_CPT_Leadership {
             $new[$key] = $label;
         }
         return $new;
+    }
+
+    /**
+     * Remove slug prefix from leadership permalinks when slug is disabled.
+     * Turns /leadership/john-doe/ into /john-doe/
+     */
+    public static function remove_slug_from_permalink($post_link, $post) {
+        if ($post->post_type === 'leadership' && $post->post_status === 'publish') {
+            return home_url('/' . $post->post_name . '/');
+        }
+        return $post_link;
+    }
+
+    /**
+     * Intercept request query vars before WP_Query runs.
+     * If a root-level pagename doesn't match an existing page but matches
+     * a leadership post, rewrite the query vars to load that leadership post.
+     * This fires before canonical redirect, preventing false 301s.
+     */
+    public static function resolve_root_leadership_request($query_vars) {
+        if (is_admin()) {
+            return $query_vars;
+        }
+
+        // Try to get slug from pagename query var first, fall back to REQUEST_URI
+        $slug = '';
+        if (!empty($query_vars['pagename'])) {
+            $slug = $query_vars['pagename'];
+        } elseif (!empty($query_vars['error'])) {
+            // WordPress couldn't match any rewrite rule - extract slug from URI
+            $path = trim(parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH), '/');
+            // Get path relative to home (handles subdirectory installs)
+            $home_path = trim(parse_url(home_url(), PHP_URL_PATH) ?: '', '/');
+            if ($home_path && strpos($path, $home_path) === 0) {
+                $path = trim(substr($path, strlen($home_path)), '/');
+            }
+            $slug = $path;
+        }
+
+        if (empty($slug)) {
+            return $query_vars;
+        }
+
+        // Don't interfere with nested slugs (subpages like parent/child)
+        if (strpos($slug, '/') !== false) {
+            return $query_vars;
+        }
+
+        // Check if a page with this slug exists - if so, let WordPress handle it
+        $page = get_page_by_path($slug);
+        if ($page) {
+            return $query_vars;
+        }
+
+        // Check if a leadership post with this slug exists
+        global $wpdb;
+        $leadership_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT ID FROM $wpdb->posts WHERE post_name = %s AND post_type = 'leadership' AND post_status = 'publish' LIMIT 1",
+            $slug
+        ));
+
+        if ($leadership_id) {
+            $query_vars = [
+                'post_type'  => 'leadership',
+                'leadership' => $slug,
+                'name'       => $slug,
+            ];
+        }
+
+        return $query_vars;
+    }
+
+    /**
+     * Prevent canonical redirect from /slug/ to /leadership-profile/slug/
+     */
+    public static function prevent_leadership_canonical_redirect($redirect_url, $requested_url) {
+        if (is_singular('leadership')) {
+            return false;
+        }
+        return $redirect_url;
     }
 
     public static function exclude_from_search($query) {
