@@ -2,14 +2,14 @@
 /**
  * Plugin Name: BP Leadership
  * Description: Featured Stories and Leadership custom post types with ACF fields
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: Alex M.
  * Text Domain: bp-leadership
  */
 
 defined('ABSPATH') || exit;
 
-define('BP_LEADERSHIP_VERSION', '1.1.0');
+define('BP_LEADERSHIP_VERSION', '1.2.0');
 define('BP_LEADERSHIP_PATH', plugin_dir_path(__FILE__));
 define('BP_LEADERSHIP_URL', plugin_dir_url(__FILE__));
 
@@ -36,6 +36,9 @@ BP_Leadership_Elementor_Queries::init();
 
 // Register as Starter Dashboard addon (priority 5, before addon loader)
 add_filter('starter_register_external_addons', ['BP_Leadership_Starter_Addon', 'register'], 5);
+
+// Initialize addon settings hooks (save handler + CSS variables)
+BP_Leadership_Starter_Addon::init();
 
 // GitHub update checker (uses PUC library loaded by Starter Dashboard)
 add_action('plugins_loaded', function() {

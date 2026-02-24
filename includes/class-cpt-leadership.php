@@ -78,6 +78,56 @@ class BP_Leadership_CPT_Leadership {
             'sanitize_callback' => 'rest_sanitize_boolean',
         ]);
 
+        // Visual settings — per breakpoint (desktop / tablet / mobile)
+        $breakpoints = ['', '_tablet', '_mobile'];
+        $ratio_defaults  = ['2/1', '3/2', '1/1'];
+        $height_defaults = [250, 200, 180];
+
+        foreach ($breakpoints as $i => $suffix) {
+            register_setting('bp_leadership_settings', 'bp_leadership_story_ratio' . $suffix, [
+                'type'              => 'string',
+                'default'           => $ratio_defaults[$i],
+                'sanitize_callback' => 'sanitize_text_field',
+            ]);
+            register_setting('bp_leadership_settings', 'bp_leadership_featured_ratio' . $suffix, [
+                'type'              => 'string',
+                'default'           => $ratio_defaults[$i],
+                'sanitize_callback' => 'sanitize_text_field',
+            ]);
+            register_setting('bp_leadership_settings', 'bp_leadership_story_height' . $suffix, [
+                'type'              => 'integer',
+                'default'           => $height_defaults[$i],
+                'sanitize_callback' => 'absint',
+            ]);
+            register_setting('bp_leadership_settings', 'bp_leadership_featured_height' . $suffix, [
+                'type'              => 'integer',
+                'default'           => $height_defaults[$i],
+                'sanitize_callback' => 'absint',
+            ]);
+            register_setting('bp_leadership_settings', 'bp_leadership_image_ratio' . $suffix, [
+                'type'              => 'string',
+                'default'           => $ratio_defaults[$i],
+                'sanitize_callback' => 'sanitize_text_field',
+            ]);
+            register_setting('bp_leadership_settings', 'bp_leadership_image_height' . $suffix, [
+                'type'              => 'integer',
+                'default'           => $height_defaults[$i],
+                'sanitize_callback' => 'absint',
+            ]);
+        }
+
+        // Toggles (shared across breakpoints)
+        register_setting('bp_leadership_settings', 'bp_leadership_use_height', [
+            'type'              => 'string',
+            'default'           => 'no',
+            'sanitize_callback' => 'sanitize_text_field',
+        ]);
+        register_setting('bp_leadership_settings', 'bp_leadership_image_use_height', [
+            'type'              => 'string',
+            'default'           => 'no',
+            'sanitize_callback' => 'sanitize_text_field',
+        ]);
+
         // Flush rewrite rules when the option changes
         if (isset($_GET['settings-updated']) && $_GET['page'] === 'leadership-settings') {
             flush_rewrite_rules();
@@ -85,6 +135,14 @@ class BP_Leadership_CPT_Leadership {
     }
 
     public static function render_settings_page() {
+        $use_height       = get_option('bp_leadership_use_height', 'no');
+        $image_use_height = get_option('bp_leadership_image_use_height', 'no');
+
+        $breakpoints = [
+            'desktop' => ['suffix' => '',        'label' => __('Desktop', 'bp-leadership'), 'icon' => 'dashicons-desktop',    'ratio_default' => '2/1', 'height_default' => 250],
+            'tablet'  => ['suffix' => '_tablet',  'label' => __('Tablet', 'bp-leadership'),  'icon' => 'dashicons-tablet',     'ratio_default' => '3/2', 'height_default' => 200],
+            'mobile'  => ['suffix' => '_mobile',  'label' => __('Mobile', 'bp-leadership'),  'icon' => 'dashicons-smartphone', 'ratio_default' => '1/1', 'height_default' => 180],
+        ];
         ?>
         <div class="wrap">
             <h1><?php _e('Leadership Settings', 'bp-leadership'); ?></h1>
@@ -101,9 +159,321 @@ class BP_Leadership_CPT_Leadership {
                         </td>
                     </tr>
                 </table>
+
+                <h2 class="title"><?php _e('Visual', 'bp-leadership'); ?></h2>
+
+                <!-- Responsive tabs -->
+                <div class="bp-leadership-tabs">
+                    <nav class="bp-leadership-tabs__nav">
+                        <?php foreach ($breakpoints as $key => $bp) : ?>
+                            <button type="button" class="bp-leadership-tabs__tab <?php echo $key === 'desktop' ? 'is-active' : ''; ?>" data-tab="<?php echo esc_attr($key); ?>">
+                                <span class="dashicons <?php echo esc_attr($bp['icon']); ?>"></span>
+                                <?php echo esc_html($bp['label']); ?>
+                            </button>
+                        <?php endforeach; ?>
+                    </nav>
+
+                    <?php foreach ($breakpoints as $key => $bp) :
+                        $s = $bp['suffix'];
+                        $rd = $bp['ratio_default'];
+                        $hd = $bp['height_default'];
+
+                        $story_ratio     = get_option('bp_leadership_story_ratio' . $s, $rd);
+                        $featured_ratio  = get_option('bp_leadership_featured_ratio' . $s, $rd);
+                        $story_height    = get_option('bp_leadership_story_height' . $s, $hd);
+                        $featured_height = get_option('bp_leadership_featured_height' . $s, $hd);
+                        $image_ratio     = get_option('bp_leadership_image_ratio' . $s, $rd);
+                        $image_height    = get_option('bp_leadership_image_height' . $s, $hd);
+
+                        $var_suffix = $s ? str_replace('_', '-', $s) : '';
+                    ?>
+                    <div class="bp-leadership-tabs__panel <?php echo $key === 'desktop' ? 'is-active' : ''; ?>" data-panel="<?php echo esc_attr($key); ?>">
+
+                        <!-- Stories -->
+                        <h3><?php _e('Stories', 'bp-leadership'); ?></h3>
+
+                        <?php if ($key === 'desktop') : ?>
+                            <table class="form-table">
+                                <tr>
+                                    <th scope="row"><?php _e('Use Height Instead of Aspect Ratio', 'bp-leadership'); ?></th>
+                                    <td>
+                                        <label class="bp-leadership-toggle">
+                                            <input type="hidden" name="bp_leadership_use_height" value="no">
+                                            <input type="checkbox" name="bp_leadership_use_height" value="yes" data-toggle-target="stories" <?php checked($use_height, 'yes'); ?>>
+                                            <span class="bp-leadership-toggle__slider"></span>
+                                        </label>
+                                    </td>
+                                </tr>
+                            </table>
+                        <?php endif; ?>
+
+                        <table class="form-table bp-leadership-ratio-fields" data-toggle-group="stories" style="<?php echo $use_height === 'yes' ? 'display:none' : ''; ?>">
+                            <tr>
+                                <th scope="row">
+                                    <label for="bp_leadership_story_ratio<?php echo esc_attr($s); ?>"><?php _e('Aspect Ratio — Every Story', 'bp-leadership'); ?></label>
+                                    <code class="bp-leadership-var-name">--bp-leadership-story-ratio<?php echo esc_html($var_suffix); ?></code>
+                                </th>
+                                <td><input type="text" id="bp_leadership_story_ratio<?php echo esc_attr($s); ?>" name="bp_leadership_story_ratio<?php echo esc_attr($s); ?>" value="<?php echo esc_attr($story_ratio); ?>" placeholder="<?php echo esc_attr($rd); ?>" class="regular-text"></td>
+                            </tr>
+                            <tr>
+                                <th scope="row">
+                                    <label for="bp_leadership_featured_ratio<?php echo esc_attr($s); ?>"><?php _e('Aspect Ratio — Featured Story', 'bp-leadership'); ?></label>
+                                    <code class="bp-leadership-var-name">--bp-leadership-featured-story-ratio<?php echo esc_html($var_suffix); ?></code>
+                                </th>
+                                <td><input type="text" id="bp_leadership_featured_ratio<?php echo esc_attr($s); ?>" name="bp_leadership_featured_ratio<?php echo esc_attr($s); ?>" value="<?php echo esc_attr($featured_ratio); ?>" placeholder="<?php echo esc_attr($rd); ?>" class="regular-text"></td>
+                            </tr>
+                        </table>
+
+                        <table class="form-table bp-leadership-height-fields" data-toggle-group="stories" style="<?php echo $use_height !== 'yes' ? 'display:none' : ''; ?>">
+                            <tr>
+                                <th scope="row">
+                                    <label for="bp_leadership_story_height<?php echo esc_attr($s); ?>"><?php _e('Height — Every Story', 'bp-leadership'); ?></label>
+                                    <code class="bp-leadership-var-name">--bp-leadership-story-height<?php echo esc_html($var_suffix); ?></code>
+                                </th>
+                                <td>
+                                    <div class="bp-leadership-range">
+                                        <input type="range" id="bp_leadership_story_height<?php echo esc_attr($s); ?>" name="bp_leadership_story_height<?php echo esc_attr($s); ?>" min="100" max="600" step="10" value="<?php echo esc_attr($story_height); ?>">
+                                        <span class="bp-leadership-range__value"><?php echo esc_html($story_height); ?>px</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th scope="row">
+                                    <label for="bp_leadership_featured_height<?php echo esc_attr($s); ?>"><?php _e('Height — Featured Story', 'bp-leadership'); ?></label>
+                                    <code class="bp-leadership-var-name">--bp-leadership-featured-story-height<?php echo esc_html($var_suffix); ?></code>
+                                </th>
+                                <td>
+                                    <div class="bp-leadership-range">
+                                        <input type="range" id="bp_leadership_featured_height<?php echo esc_attr($s); ?>" name="bp_leadership_featured_height<?php echo esc_attr($s); ?>" min="100" max="600" step="10" value="<?php echo esc_attr($featured_height); ?>">
+                                        <span class="bp-leadership-range__value"><?php echo esc_html($featured_height); ?>px</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- Featured Image -->
+                        <h3><?php _e('Featured Image', 'bp-leadership'); ?></h3>
+
+                        <?php if ($key === 'desktop') : ?>
+                            <table class="form-table">
+                                <tr>
+                                    <th scope="row"><?php _e('Use Height Instead of Aspect Ratio', 'bp-leadership'); ?></th>
+                                    <td>
+                                        <label class="bp-leadership-toggle">
+                                            <input type="hidden" name="bp_leadership_image_use_height" value="no">
+                                            <input type="checkbox" name="bp_leadership_image_use_height" value="yes" data-toggle-target="image" <?php checked($image_use_height, 'yes'); ?>>
+                                            <span class="bp-leadership-toggle__slider"></span>
+                                        </label>
+                                    </td>
+                                </tr>
+                            </table>
+                        <?php endif; ?>
+
+                        <table class="form-table bp-leadership-ratio-fields" data-toggle-group="image" style="<?php echo $image_use_height === 'yes' ? 'display:none' : ''; ?>">
+                            <tr>
+                                <th scope="row">
+                                    <label for="bp_leadership_image_ratio<?php echo esc_attr($s); ?>"><?php _e('Featured Image Aspect Ratio', 'bp-leadership'); ?></label>
+                                    <code class="bp-leadership-var-name">--bp-leadership-image-ratio<?php echo esc_html($var_suffix); ?></code>
+                                </th>
+                                <td><input type="text" id="bp_leadership_image_ratio<?php echo esc_attr($s); ?>" name="bp_leadership_image_ratio<?php echo esc_attr($s); ?>" value="<?php echo esc_attr($image_ratio); ?>" placeholder="<?php echo esc_attr($rd); ?>" class="regular-text"></td>
+                            </tr>
+                        </table>
+
+                        <table class="form-table bp-leadership-height-fields" data-toggle-group="image" style="<?php echo $image_use_height !== 'yes' ? 'display:none' : ''; ?>">
+                            <tr>
+                                <th scope="row">
+                                    <label for="bp_leadership_image_height<?php echo esc_attr($s); ?>"><?php _e('Featured Image Height', 'bp-leadership'); ?></label>
+                                    <code class="bp-leadership-var-name">--bp-leadership-image-height<?php echo esc_html($var_suffix); ?></code>
+                                </th>
+                                <td>
+                                    <div class="bp-leadership-range">
+                                        <input type="range" id="bp_leadership_image_height<?php echo esc_attr($s); ?>" name="bp_leadership_image_height<?php echo esc_attr($s); ?>" min="100" max="600" step="10" value="<?php echo esc_attr($image_height); ?>">
+                                        <span class="bp-leadership-range__value"><?php echo esc_html($image_height); ?>px</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+
                 <?php submit_button(); ?>
             </form>
         </div>
+
+        <style>
+            /* Tabs */
+            .bp-leadership-tabs {
+                margin-top: 12px;
+                max-width: 800px;
+            }
+            .bp-leadership-tabs__nav {
+                display: flex;
+                gap: 0;
+                border-bottom: 1px solid #c3c4c7;
+                margin-bottom: 0;
+            }
+            .bp-leadership-tabs__tab {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 10px 18px;
+                border: 1px solid transparent;
+                border-bottom: none;
+                background: none;
+                cursor: pointer;
+                font-size: 13px;
+                font-weight: 500;
+                color: #50575e;
+                margin-bottom: -1px;
+                border-radius: 4px 4px 0 0;
+                transition: color 0.15s, background 0.15s;
+            }
+            .bp-leadership-tabs__tab:hover {
+                color: #1d2327;
+                background: #f0f0f1;
+            }
+            .bp-leadership-tabs__tab.is-active {
+                background: #fff;
+                border-color: #c3c4c7;
+                color: #1d2327;
+                font-weight: 600;
+            }
+            .bp-leadership-tabs__tab .dashicons {
+                font-size: 16px;
+                width: 16px;
+                height: 16px;
+                line-height: 16px;
+            }
+            .bp-leadership-tabs__panel {
+                display: none;
+                background: #fff;
+                border: 1px solid #c3c4c7;
+                border-top: none;
+                padding: 0 20px 10px;
+                border-radius: 0 0 4px 4px;
+            }
+            .bp-leadership-tabs__panel.is-active {
+                display: block;
+            }
+            .bp-leadership-tabs__panel h3 {
+                margin: 20px 0 4px;
+                padding-bottom: 6px;
+                border-bottom: 1px solid #f0f0f1;
+                font-size: 14px;
+            }
+            .bp-leadership-tabs__panel .form-table {
+                margin-top: 0;
+            }
+            .bp-leadership-tabs__panel .form-table th {
+                padding-top: 12px;
+                padding-bottom: 12px;
+                width: 280px;
+            }
+
+            /* CSS variable name badge */
+            .bp-leadership-var-name {
+                display: block;
+                margin-top: 4px;
+                font-size: 11px;
+                color: #8c8f94;
+                background: #f6f7f7;
+                padding: 2px 6px;
+                border-radius: 3px;
+                font-family: Consolas, Monaco, monospace;
+                font-weight: 400;
+            }
+
+            /* Toggle */
+            .bp-leadership-toggle {
+                display: inline-flex;
+                align-items: center;
+                cursor: pointer;
+            }
+            .bp-leadership-toggle input[type="checkbox"] {
+                display: none;
+            }
+            .bp-leadership-toggle__slider {
+                position: relative;
+                width: 40px;
+                height: 22px;
+                background: #ccd0d4;
+                border-radius: 11px;
+                transition: background 0.2s;
+            }
+            .bp-leadership-toggle__slider::after {
+                content: '';
+                position: absolute;
+                top: 3px;
+                left: 3px;
+                width: 16px;
+                height: 16px;
+                background: #fff;
+                border-radius: 50%;
+                transition: transform 0.2s;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+            }
+            .bp-leadership-toggle input:checked + .bp-leadership-toggle__slider {
+                background: #2271b1;
+            }
+            .bp-leadership-toggle input:checked + .bp-leadership-toggle__slider::after {
+                transform: translateX(18px);
+            }
+
+            /* Range slider */
+            .bp-leadership-range {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                max-width: 400px;
+            }
+            .bp-leadership-range input[type="range"] {
+                flex: 1;
+            }
+            .bp-leadership-range__value {
+                min-width: 50px;
+                font-weight: 600;
+                font-variant-numeric: tabular-nums;
+            }
+        </style>
+
+        <script>
+        (function() {
+            // Tab switching
+            document.querySelectorAll('.bp-leadership-tabs__tab').forEach(function(tab) {
+                tab.addEventListener('click', function() {
+                    var target = this.getAttribute('data-tab');
+                    this.closest('.bp-leadership-tabs__nav').querySelectorAll('.bp-leadership-tabs__tab').forEach(function(t) { t.classList.remove('is-active'); });
+                    this.classList.add('is-active');
+                    this.closest('.bp-leadership-tabs').querySelectorAll('.bp-leadership-tabs__panel').forEach(function(p) {
+                        p.classList.toggle('is-active', p.getAttribute('data-panel') === target);
+                    });
+                });
+            });
+
+            // Toggle ratio/height across ALL panels
+            document.querySelectorAll('[data-toggle-target]').forEach(function(toggle) {
+                toggle.addEventListener('change', function() {
+                    var group = this.getAttribute('data-toggle-target');
+                    document.querySelectorAll('.bp-leadership-ratio-fields[data-toggle-group="' + group + '"]').forEach(function(el) {
+                        el.style.display = toggle.checked ? 'none' : '';
+                    });
+                    document.querySelectorAll('.bp-leadership-height-fields[data-toggle-group="' + group + '"]').forEach(function(el) {
+                        el.style.display = toggle.checked ? '' : 'none';
+                    });
+                });
+            });
+
+            // Range value display
+            document.querySelectorAll('.bp-leadership-range input[type="range"]').forEach(function(range) {
+                var val = range.parentElement.querySelector('.bp-leadership-range__value');
+                range.addEventListener('input', function() {
+                    val.textContent = this.value + 'px';
+                });
+            });
+        })();
+        </script>
         <?php
     }
 
