@@ -2,14 +2,14 @@
 /**
  * Plugin Name: BP Leadership
  * Description: Featured Stories and Leadership custom post types with ACF fields
- * Version: 1.2.0
+ * Version: 1.3.0
  * Author: Alex M.
  * Text Domain: bp-leadership
  */
 
 defined('ABSPATH') || exit;
 
-define('BP_LEADERSHIP_VERSION', '1.2.0');
+define('BP_LEADERSHIP_VERSION', '1.3.0');
 define('BP_LEADERSHIP_PATH', plugin_dir_path(__FILE__));
 define('BP_LEADERSHIP_URL', plugin_dir_url(__FILE__));
 
@@ -39,6 +39,42 @@ add_filter('starter_register_external_addons', ['BP_Leadership_Starter_Addon', '
 
 // Initialize addon settings hooks (save handler + CSS variables)
 BP_Leadership_Starter_Addon::init();
+
+// Tag the assigned_stories loop grid widget with a custom CSS class
+add_action('elementor/frontend/widget/before_render', function($widget) {
+    if ($widget->get_name() !== 'loop-grid') return;
+    $settings = $widget->get_settings_for_display();
+    if (($settings['post_query_query_id'] ?? '') === 'assigned_stories') {
+        $widget->add_render_attribute('_wrapper', 'class', 'bp-stories-grid');
+    }
+});
+
+// Per-leader stories grid columns override (ACF → Elementor Loop Grid)
+add_action('wp_head', function() {
+    if (!is_singular('leadership')) return;
+
+    $post_id = get_the_ID();
+    $desktop = get_field('grid_cols_desktop', $post_id) ?: '3';
+    $tablet  = get_field('grid_cols_tablet', $post_id)  ?: 'inherit';
+    $mobile  = get_field('grid_cols_mobile', $post_id)  ?: 'inherit';
+
+    if ($tablet === 'inherit') $tablet = $desktop;
+    if ($mobile === 'inherit') $mobile = $tablet;
+
+    $scope = 'body.postid-' . $post_id;
+    $grid  = '.bp-stories-grid .elementor-loop-container.elementor-grid';
+
+    $css = "$scope $grid { grid-template-columns: repeat($desktop, 1fr) !important; }";
+
+    if ($tablet !== $desktop) {
+        $css .= "\n@media (max-width: 1024px) { $scope $grid { grid-template-columns: repeat($tablet, 1fr) !important; } }";
+    }
+    if ($mobile !== $tablet) {
+        $css .= "\n@media (max-width: 767px) { $scope $grid { grid-template-columns: repeat($mobile, 1fr) !important; } }";
+    }
+
+    echo '<style id="bp-leadership-grid-cols">' . $css . '</style>' . "\n";
+}, 99);
 
 // GitHub update checker (uses PUC library loaded by Starter Dashboard)
 add_action('plugins_loaded', function() {
