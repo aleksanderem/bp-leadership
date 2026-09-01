@@ -84,7 +84,6 @@ class BP_Leadership_Elementor_Queries {
         $query->set('post_type', 'featured_story');
         $query->set('post__in', $story_ids);
         $query->set('orderby', 'post__in');
-        $query->set('posts_per_page', count($story_ids));
 
         self::$running = false;
     }
