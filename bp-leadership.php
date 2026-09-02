@@ -2,14 +2,14 @@
 /**
  * Plugin Name: BP Leadership
  * Description: Featured Stories and Leadership custom post types with ACF fields
- * Version: 1.3.4
+ * Version: 1.3.5
  * Author: Alex M.
  * Text Domain: bp-leadership
  */
 
 defined('ABSPATH') || exit;
 
-define('BP_LEADERSHIP_VERSION', '1.3.4');
+define('BP_LEADERSHIP_VERSION', '1.3.5');
 define('BP_LEADERSHIP_PATH', plugin_dir_path(__FILE__));
 define('BP_LEADERSHIP_URL', plugin_dir_url(__FILE__));
 
@@ -97,5 +97,11 @@ add_action('plugins_loaded', function() {
             'bp-leadership'
         );
         $bp_leadership_updater->setBranch('main');
+        // GitHub API bez tokena = limit 60 req/h na IP (na hostingu współdzielonym
+        // szybko wyczerpany -> HTTP 403). Token (read-only, public repo) podnosi limit.
+        // Zdefiniuj BP_LEADERSHIP_GH_TOKEN w wp-config.php — nigdy w repo.
+        if (defined('BP_LEADERSHIP_GH_TOKEN') && BP_LEADERSHIP_GH_TOKEN) {
+            $bp_leadership_updater->setAuthentication(BP_LEADERSHIP_GH_TOKEN);
+        }
     }
 }, 20);
