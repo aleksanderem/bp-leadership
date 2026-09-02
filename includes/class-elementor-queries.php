@@ -16,6 +16,44 @@ class BP_Leadership_Elementor_Queries {
         add_action('elementor/query/featured_story_single', [__CLASS__, 'featured_story_single_query'], 10, 2);
     }
 
+    /**
+     * Resolve the leadership post ID in every context Elementor renders from:
+     * normal page view, editor preview, and AJAX pagination (Load More),
+     * where get_queried_object() is not available.
+     */
+    private static function resolve_leader_id() {
+        $queried = get_queried_object();
+        if (is_object($queried) && ($queried->post_type ?? '') === 'leadership') {
+            return (int) $queried->ID;
+        }
+
+        global $post;
+        if (is_object($post) && ($post->post_type ?? '') === 'leadership') {
+            return (int) $post->ID;
+        }
+
+        // Elementor AJAX / editor: current document context
+        if (class_exists('\Elementor\Plugin')) {
+            $doc = \Elementor\Plugin::$instance->documents->get_current();
+            if ($doc) {
+                $pid = (int) $doc->get_main_id();
+                if ($pid && get_post_type($pid) === 'leadership') {
+                    return $pid;
+                }
+            }
+        }
+
+        // Last resort: post ID passed in the request (Elementor Pro pagination/ajax)
+        foreach (['post_id', 'p', 'e_post_id', 'editor_post_id', 'initial_document_id'] as $key) {
+            $pid = isset($_REQUEST[$key]) ? (int) $_REQUEST[$key] : 0;
+            if ($pid && get_post_type($pid) === 'leadership') {
+                return $pid;
+            }
+        }
+
+        return 0;
+    }
+
     public static function assigned_stories_query($query, $widget) {
         // Prevent recursion - this hook fires on every WP_Query via pre_get_posts
         if (self::$running) {
@@ -23,19 +61,7 @@ class BP_Leadership_Elementor_Queries {
         }
         self::$running = true;
 
-        $leader_id = 0;
-
-        $queried = get_queried_object();
-        if (is_object($queried) && property_exists($queried, 'post_type') && $queried->post_type === 'leadership') {
-            $leader_id = $queried->ID;
-        }
-
-        if (!$leader_id) {
-            global $post;
-            if (is_object($post) && isset($post->post_type) && $post->post_type === 'leadership') {
-                $leader_id = $post->ID;
-            }
-        }
+        $leader_id = self::resolve_leader_id();
 
         if (!$leader_id) {
             $query->set('post__in', [0]);
@@ -94,19 +120,7 @@ class BP_Leadership_Elementor_Queries {
         }
         self::$running = true;
 
-        $leader_id = 0;
-
-        $queried = get_queried_object();
-        if (is_object($queried) && property_exists($queried, 'post_type') && $queried->post_type === 'leadership') {
-            $leader_id = $queried->ID;
-        }
-
-        if (!$leader_id) {
-            global $post;
-            if (is_object($post) && isset($post->post_type) && $post->post_type === 'leadership') {
-                $leader_id = $post->ID;
-            }
-        }
+        $leader_id = self::resolve_leader_id();
 
         if (!$leader_id) {
             $query->set('post__in', [0]);
