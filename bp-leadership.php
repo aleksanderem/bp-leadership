@@ -2,14 +2,14 @@
 /**
  * Plugin Name: BP Leadership
  * Description: Featured Stories and Leadership custom post types with ACF fields
- * Version: 1.3.3
+ * Version: 1.3.4
  * Author: Alex M.
  * Text Domain: bp-leadership
  */
 
 defined('ABSPATH') || exit;
 
-define('BP_LEADERSHIP_VERSION', '1.3.3');
+define('BP_LEADERSHIP_VERSION', '1.3.4');
 define('BP_LEADERSHIP_PATH', plugin_dir_path(__FILE__));
 define('BP_LEADERSHIP_URL', plugin_dir_url(__FILE__));
 
@@ -75,6 +75,18 @@ add_action('wp_head', function() {
 
     echo '<style id="bp-leadership-grid-cols">' . $css . '</style>' . "\n";
 }, 99);
+
+// Yoast SEO "crawl optimization" 301-redirects URLs with unregistered query params,
+// which kills Elementor pagination (?e-page-{id}=N -> Load More always gets page 1).
+// Allow-list Elementor's dynamic pagination/filter params for the current request.
+add_filter('Yoast\\WP\\SEO\\allowlist_permalink_vars', function ($vars) {
+    foreach (array_keys($_GET) as $key) {
+        if (strpos($key, 'e-page-') === 0 || strpos($key, 'e-filter') === 0) {
+            $vars[] = $key;
+        }
+    }
+    return $vars;
+});
 
 // GitHub update checker (uses PUC library loaded by Starter Dashboard)
 add_action('plugins_loaded', function() {
