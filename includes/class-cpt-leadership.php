@@ -557,6 +557,14 @@ class BP_Leadership_CPT_Leadership {
             return $query_vars;
         }
 
+        // Elementor Loop Grid pagination on singular uses /slug/N/ URLs.
+        // Peel off a trailing page number before the nested-slug guard.
+        $page_num = 0;
+        if (preg_match('#^([^/]+)/(\\d+)$#', $slug, $pg_m)) {
+            $slug = $pg_m[1];
+            $page_num = (int) $pg_m[2];
+        }
+
         // Don't interfere with nested slugs (subpages like parent/child)
         if (strpos($slug, '/') !== false) {
             return $query_vars;
@@ -581,6 +589,9 @@ class BP_Leadership_CPT_Leadership {
                 'leadership' => $slug,
                 'name'       => $slug,
             ];
+            if ($page_num > 1) {
+                $query_vars['page'] = $page_num;
+            }
         }
 
         return $query_vars;
